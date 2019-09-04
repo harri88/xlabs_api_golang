@@ -6,10 +6,10 @@ import (
 	"os"
 	"testing"
 
+	"github.com/harri88/xlabs_api_golang/api/controllers"
+	"github.com/harri88/xlabs_api_golang/api/models"
 	"github.com/jinzhu/gorm"
 	"github.com/joho/godotenv"
-	"github.com/victorsteven/fullstack/api/controllers"
-	"github.com/victorsteven/fullstack/api/models"
 )
 
 var server = controllers.Server{}

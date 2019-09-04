@@ -1,6 +1,6 @@
 package main
 
-import "github.com/victorsteven/fullstack/api"
+import "github.com/harri88/xlabs_api_golang/api"
 
 func main() {
 	api.Run()
