@@ -15,78 +15,70 @@ import (
 	"github.com/harri88/xlabs_api_golang/api/utils/formaterror"
 )
 
-func (server *Server) CreatePost(w http.ResponseWriter, r *http.Request) {
+func (server *Server) CreateUser(w http.ResponseWriter, r *http.Request) {
 
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		responses.ERROR(w, http.StatusUnprocessableEntity, err)
-		return
 	}
-	post := models.Post{}
-	err = json.Unmarshal(body, &post)
+	user := models.User{}
+	err = json.Unmarshal(body, &user)
 	if err != nil {
 		responses.ERROR(w, http.StatusUnprocessableEntity, err)
 		return
 	}
-	post.Prepare()
-	err = post.Validate()
+	user.Prepare()
+	err = user.Validate("")
 	if err != nil {
 		responses.ERROR(w, http.StatusUnprocessableEntity, err)
 		return
 	}
-	uid, err := auth.ExtractTokenID(r)
+	userCreated, err := user.SaveUser(server.DB)
+
 	if err != nil {
-		responses.ERROR(w, http.StatusUnauthorized, errors.New("Unauthorized"))
-		return
-	}
-	if uid != post.AuthorID {
-		responses.ERROR(w, http.StatusUnauthorized, errors.New(http.StatusText(http.StatusUnauthorized)))
-		return
-	}
-	postCreated, err := post.SavePost(server.DB)
-	if err != nil {
+
 		formattedError := formaterror.FormatError(err.Error())
+
 		responses.ERROR(w, http.StatusInternalServerError, formattedError)
 		return
 	}
-	w.Header().Set("Lacation", fmt.Sprintf("%s%s/%d", r.Host, r.URL.Path, postCreated.ID))
-	responses.JSON(w, http.StatusCreated, postCreated)
+	w.Header().Set("Location", fmt.Sprintf("%s%s/%d", r.Host, r.RequestURI, userCreated.ID))
+	responses.JSON(w, http.StatusCreated, userCreated)
 }
 
-func (server *Server) GetPosts(w http.ResponseWriter, r *http.Request) {
+func (server *Server) GetUsers(w http.ResponseWriter, r *http.Request) {
 
-	post := models.Post{}
+	user := models.User{}
 
-	posts, err := post.FindAllPosts(server.DB)
+	users, err := user.FindAllUsers(server.DB)
 	if err != nil {
 		responses.ERROR(w, http.StatusInternalServerError, err)
 		return
 	}
-	responses.JSON(w, http.StatusOK, posts)
+	responses.JSON(w, http.StatusOK, users)
 }
 
-func (server *Server) GetPost(w http.ResponseWriter, r *http.Request) {
+func (server *Server) GetUser(w http.ResponseWriter, r *http.Request) {
 
 	vars := mux.Vars(r)
-	pid, err := strconv.ParseUint(vars["id"], 10, 64)
+	uid, err := strconv.ParseUint(vars["id"], 10, 32)
 	if err != nil {
 		responses.ERROR(w, http.StatusBadRequest, err)
 		return
 	}
-	post := models.Post{}
-
-	postReceived, err := post.FindPostByID(server.DB, pid)
+	user := models.User{}
+	userGotten, err := user.FindUserByID(server.DB, uint32(uid))
 	if err != nil {
-		responses.ERROR(w, http.StatusInternalServerError, err)
+		responses.ERROR(w, http.StatusBadRequest, err)
 		return
 	}
-	responses.JSON(w, http.StatusOK, postReceived)
+	responses.JSON(w, http.StatusOK, userGotten)
 }
 
-func (server *Server) UpdatePost(w http.ResponseWriter, r *http.Request) {
+func (server *Server) UpdateUser(w http.ResponseWriter, r *http.Request) {
 
 	vars := mux.Vars(r)
-	pid, err := strconv.ParseUint(vars["id"], 10, 64)
+	uid, err := strconv.ParseUint(vars["id"], 10, 32)
 	if err != nil {
 		responses.ERROR(w, http.StatusBadRequest, err)
 		return
@@ -96,58 +88,61 @@ func (server *Server) UpdatePost(w http.ResponseWriter, r *http.Request) {
 		responses.ERROR(w, http.StatusUnprocessableEntity, err)
 		return
 	}
-	post := models.Post{}
-	err = json.Unmarshal(body, &post)
+	user := models.User{}
+	err = json.Unmarshal(body, &user)
 	if err != nil {
 		responses.ERROR(w, http.StatusUnprocessableEntity, err)
 		return
 	}
-	post.Prepare()
-	err = post.Validate()
-	if err != nil {
-		responses.ERROR(w, http.StatusUnprocessableEntity, err)
-		return
-	}
-	uid, err := auth.ExtractTokenID(r)
+	tokenID, err := auth.ExtractTokenID(r)
 	if err != nil {
 		responses.ERROR(w, http.StatusUnauthorized, errors.New("Unauthorized"))
 		return
 	}
-	if uid != post.AuthorID {
+	if tokenID != uint32(uid) {
 		responses.ERROR(w, http.StatusUnauthorized, errors.New(http.StatusText(http.StatusUnauthorized)))
 		return
 	}
-	postUpdated, err := post.UpdateAPost(server.DB, pid)
-
+	user.Prepare()
+	err = user.Validate("update")
+	if err != nil {
+		responses.ERROR(w, http.StatusUnprocessableEntity, err)
+		return
+	}
+	updatedUser, err := user.UpdateAUser(server.DB, uint32(uid))
 	if err != nil {
 		formattedError := formaterror.FormatError(err.Error())
 		responses.ERROR(w, http.StatusInternalServerError, formattedError)
 		return
 	}
-	responses.JSON(w, http.StatusOK, postUpdated)
+	responses.JSON(w, http.StatusOK, updatedUser)
 }
 
-func (server *Server) DeletePost(w http.ResponseWriter, r *http.Request) {
+func (server *Server) DeleteUser(w http.ResponseWriter, r *http.Request) {
 
 	vars := mux.Vars(r)
 
-	post := models.Post{}
+	user := models.User{}
 
-	pid, err := strconv.ParseUint(vars["id"], 10, 64)
+	uid, err := strconv.ParseUint(vars["id"], 10, 32)
 	if err != nil {
 		responses.ERROR(w, http.StatusBadRequest, err)
 		return
 	}
-	uid, err := auth.ExtractTokenID(r)
+	tokenID, err := auth.ExtractTokenID(r)
 	if err != nil {
 		responses.ERROR(w, http.StatusUnauthorized, errors.New("Unauthorized"))
 		return
 	}
-	_, err = post.DeleteAPost(server.DB, pid, uid)
+	if tokenID != uint32(uid) {
+		responses.ERROR(w, http.StatusUnauthorized, errors.New(http.StatusText(http.StatusUnauthorized)))
+		return
+	}
+	_, err = user.DeleteAUser(server.DB, uint32(uid))
 	if err != nil {
 		responses.ERROR(w, http.StatusBadRequest, err)
 		return
 	}
-	w.Header().Set("Entity", fmt.Sprintf("%d", pid))
+	w.Header().Set("Entity", fmt.Sprintf("%d", uid))
 	responses.JSON(w, http.StatusNoContent, "")
 }
